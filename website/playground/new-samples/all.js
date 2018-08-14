@@ -162,6 +162,12 @@ var PLAY_SAMPLES = [
 		name: "Configure JSON defaults",
 		id: "extending-language-services-configure-json-defaults",
 		path: "extending-language-services/configure-json-defaults"
+	},
+	{
+		chapter: "Extending Language Services",
+		name: "Configure YAML defaults",
+		id: "extending-language-services-configure-yaml-defaults",
+		path: "extending-language-services/configure-yaml-defaults"
 	}
 ];
 

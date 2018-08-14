@@ -39,16 +39,15 @@ loadEditor(function() {
 // Configures two JSON schemas, with references.
 
 var jsonCode = [
-    '{',
-    '    "p1": "v3",',
-    '    "p2": false',
-    "}"
+    'p1: v3',
+    'p2: false',
+    ""
 ].join('\n');
 var modelUri = monaco.Uri.parse("a://b/foo.json"); // a made up unique URI for our model
-var model = monaco.editor.createModel(jsonCode, "json", modelUri);
+var model = monaco.editor.createModel(jsonCode, "yaml", modelUri);
 
-// configure the JSON language support with schemas and schema associations
-monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+// configure the yaml language support with schemas and schema associations
+monaco.languages.yaml.yamlDefaults.setDiagnosticsOptions({
     validate: true,
     schemas: [{
         uri: "http://myserver/foo-schema.json", // id of the first schema
