@@ -60,7 +60,7 @@ var editor = monaco.editor.create(document.getElementById("container"), {
 	value: jsCode,
 	language: "javascript",
 	glyphMargin: true,
-	nativeContextMenu: false
+	contextmenu: false
 });
 
 var decorations = editor.deltaDecorations([], [
@@ -159,7 +159,7 @@ editor.onMouseLeave(function (e) {
 });
 
 
-/*----------------------------------------SAMPLE CSS END*/
+/*----------------------------------------SAMPLE JS END*/
 });
 </script>
 </body>
