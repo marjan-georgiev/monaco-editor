@@ -29,10 +29,10 @@
         contrib: "vs/language/yaml/monaco.contribution",
         modulePrefix: "vs/language/yaml",
         paths: {
-          src: "/monaco-yaml/release/dev",
-          "npm/dev": "node_modules/monaco-yaml/release/dev",
-          "npm/min": "node_modules/monaco-yaml/release/min",
-          esm: "node_modules/monaco-yaml/release/esm"
+          src: "/monaco-yaml/dev",
+          "npm/dev": "node_modules/monaco-yaml/dev",
+          "npm/min": "node_modules/monaco-yaml/min",
+          esm: "node_modules/monaco-yaml/esm"
         }
       },
       {

@@ -296,11 +296,12 @@ function ESM_pluginStream(plugin, destinationPath) {
 				const end = info.importedFiles[i].end;
 
 				if (!/(^\.\/)|(^\.\.\/)/.test(importText)) {
+					console.log(importText);
 					// non-relative import
-					if (!/^monaco-editor-core/.test(importText)) {
-						console.error(`Non-relative import for unknown module: ${importText} in ${data.path}`);
-						process.exit(0);
-					}
+					// if (!/^monaco-editor-core/.test(importText)) {
+					// 	console.error(`Non-relative import for unknown module: ${importText} in ${data.path}`);
+					// 	process.exit(0);
+					// }
 
 					const myFileDestPath = path.join(DESTINATION, plugin.modulePrefix, data.relative);
 					const importFilePath = path.join(DESTINATION, importText.substr('monaco-editor-core/esm/'.length));

@@ -39,7 +39,7 @@
     "monaco-json": "2.8.0",
     "monaco-languages": "1.9.2",
     "monaco-typescript": "3.6.1",
-    "monaco-yaml": "^1.0.0",
+    "monaco-yaml": "^2.1.0",
     "puppeteer": "^1.15.0",
     "rimraf": "^2.6.3",
     "style-loader": "^1.0.1",
