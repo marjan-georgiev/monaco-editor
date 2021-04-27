@@ -6,10 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const rimraf = require('rimraf');
 const cp = require('child_process');
-const os = require('os');
 const yaserver = require('yaserver');
 const http = require('http');
-const typedoc = require("gulp-typedoc");
 const CleanCSS = require('clean-css');
 const uncss = require('uncss');
 const File = require('vinyl');
@@ -184,48 +182,9 @@ function addPluginContribs(type) {
 			var contribPath = path.join(__dirname, pluginPath, plugin.contrib.substr(plugin.modulePrefix.length)) + '.js';
 			var contribContents = fs.readFileSync(contribPath).toString();
 
-			// Check for the anonymous define call case 1
-			// transform define(function() {...}) to define("moduleId",["require"],function() {...})
-			var anonymousContribDefineCase1 = contribContents.indexOf('define(function');
-			if (anonymousContribDefineCase1 >= 0) {
-				contribContents = (
-					contribContents.substring(0, anonymousContribDefineCase1)
-					+ `define("${plugin.contrib}",["require"],function`
-					+ contribContents.substring(anonymousContribDefineCase1 + 'define(function'.length)
-				);
-			}
-
-			// Check for the anonymous define call case 2
-			// transform define([ to define("moduleId",[
-			var anonymousContribDefineCase2 = contribContents.indexOf('define([');
-			if (anonymousContribDefineCase2 >= 0) {
-				contribContents = (
-					contribContents.substring(0, anonymousContribDefineCase2)
-					+ `define("${plugin.contrib}",[`
-					+ contribContents.substring(anonymousContribDefineCase2 + 'define(['.length)
-				);
-			}
-
-			var contribDefineIndex = contribContents.indexOf('define("' + plugin.contrib);
-			if (contribDefineIndex === -1) {
-				contribDefineIndex = contribContents.indexOf('define(\'' + plugin.contrib);
-				if (contribDefineIndex === -1) {
-					console.error('(1) CANNOT DETERMINE AMD define location for contribution', pluginPath);
-					process.exit(-1);
-				}
-			}
-
-			var depsEndIndex = contribContents.indexOf(']', contribDefineIndex);
-			if (contribDefineIndex === -1) {
-				console.error('(2) CANNOT DETERMINE AMD define location for contribution', pluginPath);
-				process.exit(-1);
-			}
-
-			contribContents = contribContents.substring(0, depsEndIndex) + ',"vs/editor/editor.api"' + contribContents.substring(depsEndIndex);
-
 			contribContents = contribContents.replace(
-				'define("vs/basic-languages/_.contribution",["require","exports"],',
-				'define("vs/basic-languages/_.contribution",["require","exports","vs/editor/editor.api"],',
+				/define\((['"][a-z\/\-]+\/fillers\/monaco-editor-core['"]),\[\],/,
+				'define($1,[\'vs/editor/editor.api\'],'
 			);
 
 			extraContent.push(contribContents);
@@ -291,7 +250,7 @@ function ESM_pluginStream(plugin, destinationPath) {
 
 			const info = ts.preProcessFile(contents);
 			for (let i = info.importedFiles.length - 1; i >= 0; i--) {
-				const importText = info.importedFiles[i].fileName;
+				let importText = info.importedFiles[i].fileName;
 				const pos = info.importedFiles[i].pos;
 				const end = info.importedFiles[i].end;
 
@@ -302,6 +261,10 @@ function ESM_pluginStream(plugin, destinationPath) {
 					// 	console.error(`Non-relative import for unknown module: ${importText} in ${data.path}`);
 					// 	process.exit(0);
 					// }
+
+					if (importText === 'monaco-editor-core') {
+						importText = 'monaco-editor-core/esm/vs/editor/editor.api';
+					}
 
 					const myFileDestPath = path.join(DESTINATION, plugin.modulePrefix, data.relative);
 					const importFilePath = path.join(DESTINATION, importText.substr('monaco-editor-core/esm/'.length));
@@ -444,7 +407,7 @@ function addPluginDTS() {
 			var dtsPath = path.join(pluginPath, '../monaco.d.ts');
 			try {
 				let plugindts = fs.readFileSync(dtsPath).toString();
-				plugindts = plugindts.replace('declare module', 'declare namespace');
+				plugindts = plugindts.replace(/\/\/\/ <reference.*\n/m, '');
 				extraContent.push(plugindts);
 			} catch (err) {
 				return;
@@ -471,7 +434,7 @@ function addPluginDTS() {
 		}));
 
 		fs.writeFileSync('website/playground/monaco.d.ts.txt', contents);
-		fs.writeFileSync('monaco.d.ts', contents);
+		fs.writeFileSync('typedoc/monaco.d.ts', contents);
 		this.emit('data', data);
 	});
 }
@@ -507,8 +470,13 @@ function toExternalDTS(contents) {
 		if (line.indexOf('declare namespace monaco.') === 0) {
 			lines[i] = line.replace('declare namespace monaco.', 'export namespace ');
 		}
+
+		if (line.indexOf('declare let MonacoEnvironment') === 0) {
+			lines[i] = `declare global {\n    let MonacoEnvironment: Environment | undefined;\n}`;
+			// lines[i] = line.replace('declare namespace monaco.', 'export namespace ');
+		}
 	}
-	return lines.join('\n');
+	return lines.join('\n').replace(/\n\n\n+/g, '\n\n');
 }
 
 /**
@@ -562,11 +530,8 @@ function addPluginThirdPartyNotices() {
 
 
 // --- website
-
 const cleanWebsiteTask = function(cb) { rimraf('../monaco-editor-website', { maxBusyTries: 1 }, cb); };
 const buildWebsiteTask = taskSeries(cleanWebsiteTask, function() {
-
-	const initialCWD = process.cwd();
 
 	function replaceWithRelativeResource(dataPath, contents, regex, callback) {
 		return contents.replace(regex, function(_, m0) {
@@ -581,8 +546,7 @@ const buildWebsiteTask = taskSeries(cleanWebsiteTask, function() {
 	return (
 		es.merge(
 			gulp.src([
-				'website/**/*',
-				'!website/typedoc-theme/**'
+				'website/**/*'
 			], { dot: true })
 			.pipe(es.through(function(data) {
 				if (!data.contents || !/\.(html)$/.test(data.path) || /new-samples/.test(data.path)) {
@@ -659,31 +623,7 @@ const buildWebsiteTask = taskSeries(cleanWebsiteTask, function() {
 					this.emit('end');
 				}
 			}))
-			.pipe(gulp.dest('../monaco-editor-website')),
-
-			// TypeDoc is silly and consumes the `exclude` option.
-			// This option does not make it to typescript compiler, which ends up including /node_modules/ .d.ts files.
-			// We work around this by changing the cwd... :O
-
-			gulp.src('monaco.d.ts')
-			.pipe(es.through(undefined, function() {
-				process.chdir(os.tmpdir());
-				this.emit('end');
-			}))
-			.pipe(typedoc({
-				mode: 'file',
-				out: path.join(__dirname, '../monaco-editor-website/api'),
-				includeDeclarations: true,
-				theme: path.join(__dirname, 'website/typedoc-theme'),
-				entryPoint: 'monaco',
-				name: 'Monaco Editor API v' + MONACO_EDITOR_VERSION,
-				readme: 'none',
-				hideGenerator: true
-			}))
-			.pipe(es.through(undefined, function() {
-				process.chdir(initialCWD);
-				this.emit('end');
-			}))
+			.pipe(gulp.dest('../monaco-editor-website'))
 		)
 
 		.pipe(es.through(function(data) {
@@ -705,7 +645,7 @@ const buildWebsiteTask = taskSeries(cleanWebsiteTask, function() {
 });
 gulp.task('build-website', buildWebsiteTask);
 
-gulp.task('website', taskSeries(buildWebsiteTask, function() {
+gulp.task('prepare-website-branch', async function() {
 	cp.execSync('git init', {
 		cwd: path.join(__dirname, '../monaco-editor-website')
 	});
@@ -734,7 +674,7 @@ gulp.task('website', taskSeries(buildWebsiteTask, function() {
 		cwd: path.join(__dirname, '../monaco-editor-website')
 	});
 	console.log('RUN monaco-editor-website>git push origin gh-pages --force');
-}));
+});
 
 const generateTestSamplesTask = function() {
 	var sampleNames = fs.readdirSync(path.join(__dirname, 'test/samples'));
@@ -767,7 +707,6 @@ const generateTestSamplesTask = function() {
 			'<html>',
 			'<head>',
 			'	<base href="..">',
-			'	<meta http-equiv="X-UA-Compatible" content="IE=edge" />',
 			'	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />',
 			'</head>',
 			'<body>',
@@ -848,13 +787,10 @@ function createSimpleServer(rootDir, port) {
 	});
 }
 
+gulp.task('generate-test-samples', taskSeries(generateTestSamplesTask));
+
 gulp.task('simpleserver', taskSeries(generateTestSamplesTask, function() {
 	const SERVER_ROOT = path.normalize(path.join(__dirname, '../'));
 	createSimpleServer(SERVER_ROOT, 8080);
 	createSimpleServer(SERVER_ROOT, 8088);
-}));
-
-gulp.task('ciserver', taskSeries(generateTestSamplesTask, function () {
-	const SERVER_ROOT = path.normalize(path.join(__dirname, './'));
-	createSimpleServer(SERVER_ROOT, 8080);
 }));
